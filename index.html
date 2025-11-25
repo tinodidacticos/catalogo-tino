@@ -111,6 +111,7 @@
     .badge strong{
       color:var(--accent);
     }
+
     .canvas-wrap{
       background:#0b1120;
       border-radius:14px;
@@ -127,7 +128,28 @@
       border-radius:8px;
       box-shadow:0 10px 25px rgba(0,0,0,.6);
       background:#111827;
+      /* para animación */
+      transition:transform .3s ease, opacity .3s ease;
     }
+
+    /* Animaciones simples de “pasar página” */
+    .flip-next{
+      animation: flipNext .35s ease;
+    }
+    .flip-prev{
+      animation: flipPrev .35s ease;
+    }
+    @keyframes flipNext{
+      0% { transform:translateX(0); opacity:1; }
+      40%{ transform:translateX(-28px); opacity:.35; }
+      100%{ transform:translateX(0); opacity:1; }
+    }
+    @keyframes flipPrev{
+      0% { transform:translateX(0); opacity:1; }
+      40%{ transform:translateX(28px); opacity:.35; }
+      100%{ transform:translateX(0); opacity:1; }
+    }
+
     .note{
       font-size:.72rem;
       color:var(--muted);
@@ -139,6 +161,33 @@
       header h2{font-size:1.4rem;}
       .canvas-wrap{max-height:70vh;}
     }
+
+    /* Botón flotante de WhatsApp */
+    .whatsapp-btn{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      background:#22c55e;
+      color:#f9fafb;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:.85rem;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      box-shadow:0 8px 20px rgba(0,0,0,.45);
+      border:1px solid rgba(22,163,74,.9);
+      z-index:40;
+    }
+    .whatsapp-btn span.icon{
+      font-size:1.1rem;
+      line-height:1;
+    }
+    .whatsapp-btn:hover{
+      filter:brightness(1.07);
+      transform:translateY(-1px);
+    }
   </style>
 
   <!-- PDF.js desde CDN -->
@@ -148,9 +197,10 @@
 
 <div class="wrap">
   <header>
+    <!-- 🔁 SOLO CAMBIAR EL TEXTO MES A MES -->
     <h1>CATÁLOGO TINO</h1>
     <h2>Lista de Precios Noviembre 2025</h2>
-    <p>Usá las flechas o el zoom para recorrer el catálogo como si fuera una revista.</p>
+    <p>Usá las flechas, el toque o el zoom para recorrer el catálogo como si fuera una revista.</p>
   </header>
 
   <div class="viewer-card">
@@ -171,19 +221,27 @@
     </div>
 
     <div class="note">
-      Consejo: en el celu podés pellizcar para acercar/alejar.
+      Tip: en el celu podés deslizar a izquierda/derecha para cambiar de página.
     </div>
 
-    <div class="canvas-wrap">
+    <div class="canvas-wrap" id="canvasWrap">
       <canvas id="pdfCanvas"></canvas>
     </div>
   </div>
 </div>
 
+<!-- Botón flotante de WhatsApp -->
+<a class="whatsapp-btn"
+   href="https://wa.me/542396433691"
+   target="_blank"
+   rel="noopener">
+  <span class="icon">💬</span>
+  <span>WhatsApp TINO</span>
+</a>
+
 <script>
-  // 🔁 SOLO CAMBIAR ESTAS 3 COSAS CADA MES (si querés)
-  const PDF_FILE  = 'catalogo.pdf'; // nombre del archivo en el repo
-  // Si mantenés el mismo nombre y solo lo reemplazás, NO hace falta tocar esto.
+  // 🔁 SIEMPRE QUE EL PDF SE LLAME catalogo.pdf, NO TOCAR ESTO.
+  const PDF_FILE  = 'catalogo.pdf';
 
   const pdfjsLib = window['pdfjsLib'];
   pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -194,6 +252,7 @@
   let scale = 1.1; // Zoom inicial
   const canvas = document.getElementById('pdfCanvas');
   const ctx = canvas.getContext('2d');
+  const canvasWrap = document.getElementById('canvasWrap');
 
   const pageNumSpan = document.getElementById('pageNum');
   const pageCountSpan = document.getElementById('pageCount');
@@ -204,7 +263,16 @@
   const zoomInBtn = document.getElementById('zoomIn');
   const zoomOutBtn = document.getElementById('zoomOut');
 
-  function renderPage(num) {
+  function playFlip(direction){
+    canvas.classList.remove('flip-next','flip-prev');
+    // forzar reflow para reiniciar animación
+    void canvas.offsetWidth;
+    canvas.classList.add(direction === 'next' ? 'flip-next' : 'flip-prev');
+  }
+
+  function renderPage(num, direction) {
+    if(direction) playFlip(direction);
+
     pdfDoc.getPage(num).then(function (page) {
       const viewport = page.getViewport({ scale: scale });
 
@@ -226,19 +294,19 @@
     });
   }
 
-  function queueRenderPage(num) {
+  function queueRenderPage(num, direction) {
     if (num < 1 || num > pdfDoc.numPages) return;
     pageNum = num;
-    renderPage(pageNum);
+    renderPage(pageNum, direction);
   }
 
-  // Controles
+  // Controles de botones
   prevBtn.addEventListener('click', function () {
-    queueRenderPage(pageNum - 1);
+    queueRenderPage(pageNum - 1, 'prev');
   });
 
   nextBtn.addEventListener('click', function () {
-    queueRenderPage(pageNum + 1);
+    queueRenderPage(pageNum + 1, 'next');
   });
 
   zoomInBtn.addEventListener('click', function () {
@@ -250,6 +318,48 @@
     scale = Math.max(scale - 0.15, 0.4);
     renderPage(pageNum);
   });
+
+  // 👉 Cambiar página tocando mitad izquierda/derecha del visor
+  canvasWrap.addEventListener('click', function (e){
+    const rect = canvasWrap.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if(x < rect.width / 2){
+      // izquierda = página anterior
+      queueRenderPage(pageNum - 1, 'prev');
+    } else {
+      // derecha = página siguiente
+      queueRenderPage(pageNum + 1, 'next');
+    }
+  });
+
+  // 👉 Soporte para swipe en pantallas táctiles
+  let touchStartX = null;
+  let touchStartY = null;
+
+  canvasWrap.addEventListener('touchstart', function(e){
+    const t = e.changedTouches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+  }, {passive:true});
+
+  canvasWrap.addEventListener('touchend', function(e){
+    if(touchStartX === null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+
+    // si el gesto es mayormente horizontal
+    if(Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)){
+      if(dx < 0){
+        // swipe hacia la izquierda -> página siguiente
+        queueRenderPage(pageNum + 1, 'next');
+      }else{
+        // swipe hacia la derecha -> página anterior
+        queueRenderPage(pageNum - 1, 'prev');
+      }
+    }
+    touchStartX = touchStartY = null;
+  }, {passive:true});
 
   // Cargar el PDF
   pdfjsLib.getDocument(PDF_FILE).promise.then(function (pdfDoc_) {
