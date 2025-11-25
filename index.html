@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Catálogo Tino · Visor</title>
+  <title>CATÁLOGO TINO · Lista de Precios Noviembre 2025</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -45,7 +45,7 @@
       font-weight:700;
     }
     header p{
-      font-size:.85rem;
+      font-size:.9rem;
       color:var(--muted);
       margin-top:4px;
     }
@@ -136,7 +136,7 @@
       padding:0 4px 2px;
     }
     @media (max-width:640px){
-      header h2{font-size:1.3rem;}
+      header h2{font-size:1.4rem;}
       .canvas-wrap{max-height:70vh;}
     }
   </style>
@@ -145,10 +145,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 </head>
 <body>
+
 <div class="wrap">
   <header>
-    <h1>CATÁLOGO INTERACTIVO</h1>
-    <h2>Software de Evaluación · Tino</h2>
+    <h1>CATÁLOGO TINO</h1>
+    <h2>Lista de Precios Noviembre 2025</h2>
     <p>Usá las flechas o el zoom para recorrer el catálogo como si fuera una revista.</p>
   </header>
 
@@ -180,8 +181,9 @@
 </div>
 
 <script>
-  // Ruta del PDF (debe estar en la misma carpeta que este index)
-  const url = 'catalogo.pdf';
+  // 🔁 SOLO CAMBIAR ESTAS 3 COSAS CADA MES (si querés)
+  const PDF_FILE  = 'catalogo.pdf'; // nombre del archivo en el repo
+  // Si mantenés el mismo nombre y solo lo reemplazás, NO hace falta tocar esto.
 
   const pdfjsLib = window['pdfjsLib'];
   pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -250,13 +252,13 @@
   });
 
   // Cargar el PDF
-  pdfjsLib.getDocument(url).promise.then(function (pdfDoc_) {
+  pdfjsLib.getDocument(PDF_FILE).promise.then(function (pdfDoc_) {
     pdfDoc = pdfDoc_;
     pageCountSpan.textContent = pdfDoc.numPages;
     renderPage(pageNum);
   }).catch(function (err) {
     console.error('Error cargando el PDF:', err);
-    alert('No se pudo cargar el catálogo. Verificá el archivo "catalogo.pdf".');
+    alert('No se pudo cargar el catálogo. Verificá el archivo "' + PDF_FILE + '".');
   });
 </script>
 </body>
