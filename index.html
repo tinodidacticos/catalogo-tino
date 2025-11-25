@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Catálogo Tino · Visor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root{
+      --bg:#111827;
+      --card:#1f2937;
+      --accent:#10b981;
+      --accent-soft:rgba(16,185,129,.15);
+      --text:#f9fafb;
+      --muted:#9ca3af;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(circle at top,#111827 0,#020617 55%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .wrap{
+      width:100%;
+      max-width:1100px;
+      padding:12px;
+    }
+    header{
+      text-align:center;
+      margin-bottom:8px;
+    }
+    header h1{
+      font-size:1.1rem;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+    header h2{
+      font-size:1.6rem;
+      font-weight:700;
+    }
+    header p{
+      font-size:.85rem;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    .viewer-card{
+      background:var(--card);
+      border-radius:18px;
+      box-shadow:0 18px 45px rgba(0,0,0,.55);
+      padding:12px;
+      border:1px solid #374151;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      padding:4px 6px 0;
+    }
+    .left-controls,
+    .right-controls{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    button{
+      border:none;
+      border-radius:999px;
+      padding:6px 10px;
+      background:rgba(15,23,42,.8);
+      color:var(--text);
+      font-size:.8rem;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      transition:.15s;
+      border:1px solid #1f2937;
+    }
+    button:hover{
+      background:var(--accent-soft);
+      border-color:var(--accent);
+    }
+    button[disabled]{
+      opacity:.4;
+      cursor:not-allowed;
+      background:#111827;
+    }
+    .badge{
+      background:rgba(15,23,42,.9);
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:.75rem;
+      color:var(--muted);
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      border:1px solid #1f2937;
+    }
+    .badge strong{
+      color:var(--accent);
+    }
+    .canvas-wrap{
+      background:#0b1120;
+      border-radius:14px;
+      padding:10px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow:auto;
+      max-height:75vh;
+    }
+    canvas{
+      max-width:100%;
+      height:auto;
+      border-radius:8px;
+      box-shadow:0 10px 25px rgba(0,0,0,.6);
+      background:#111827;
+    }
+    .note{
+      font-size:.72rem;
+      color:var(--muted);
+      text-align:right;
+      margin-top:-4px;
+      padding:0 4px 2px;
+    }
+    @media (max-width:640px){
+      header h2{font-size:1.3rem;}
+      .canvas-wrap{max-height:70vh;}
+    }
+  </style>
+
+  <!-- PDF.js desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CATÁLOGO INTERACTIVO</h1>
+    <h2>Software de Evaluación · Tino</h2>
+    <p>Usá las flechas o el zoom para recorrer el catálogo como si fuera una revista.</p>
+  </header>
+
+  <div class="viewer-card">
+    <div class="toolbar">
+      <div class="left-controls">
+        <button id="prevPage">⟵ Anterior</button>
+        <button id="nextPage">Siguiente ⟶</button>
+        <span class="badge">
+          Página <strong id="pageNum">1</strong> / <span id="pageCount">?</span>
+        </span>
+      </div>
+
+      <div class="right-controls">
+        <button id="zoomOut">−</button>
+        <span class="badge">Zoom <strong id="zoomLevel">100%</strong></span>
+        <button id="zoomIn">+</button>
+      </div>
+    </div>
+
+    <div class="note">
+      Consejo: en el celu podés pellizcar para acercar/alejar.
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Ruta del PDF (debe estar en la misma carpeta que este index)
+  const url = 'catalogo.pdf';
+
+  const pdfjsLib = window['pdfjsLib'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+  let pdfDoc = null;
+  let pageNum = 1;
+  let scale = 1.1; // Zoom inicial
+  const canvas = document.getElementById('pdfCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const pageNumSpan = document.getElementById('pageNum');
+  const pageCountSpan = document.getElementById('pageCount');
+  const zoomLevelSpan = document.getElementById('zoomLevel');
+
+  const prevBtn = document.getElementById('prevPage');
+  const nextBtn = document.getElementById('nextPage');
+  const zoomInBtn = document.getElementById('zoomIn');
+  const zoomOutBtn = document.getElementById('zoomOut');
+
+  function renderPage(num) {
+    pdfDoc.getPage(num).then(function (page) {
+      const viewport = page.getViewport({ scale: scale });
+
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+
+      page.render(renderContext);
+
+      pageNumSpan.textContent = num;
+      zoomLevelSpan.textContent = Math.round(scale * 100) + '%';
+
+      prevBtn.disabled = (num <= 1);
+      nextBtn.disabled = (num >= pdfDoc.numPages);
+    });
+  }
+
+  function queueRenderPage(num) {
+    if (num < 1 || num > pdfDoc.numPages) return;
+    pageNum = num;
+    renderPage(pageNum);
+  }
+
+  // Controles
+  prevBtn.addEventListener('click', function () {
+    queueRenderPage(pageNum - 1);
+  });
+
+  nextBtn.addEventListener('click', function () {
+    queueRenderPage(pageNum + 1);
+  });
+
+  zoomInBtn.addEventListener('click', function () {
+    scale = Math.min(scale + 0.15, 3);
+    renderPage(pageNum);
+  });
+
+  zoomOutBtn.addEventListener('click', function () {
+    scale = Math.max(scale - 0.15, 0.4);
+    renderPage(pageNum);
+  });
+
+  // Cargar el PDF
+  pdfjsLib.getDocument(url).promise.then(function (pdfDoc_) {
+    pdfDoc = pdfDoc_;
+    pageCountSpan.textContent = pdfDoc.numPages;
+    renderPage(pageNum);
+  }).catch(function (err) {
+    console.error('Error cargando el PDF:', err);
+    alert('No se pudo cargar el catálogo. Verificá el archivo "catalogo.pdf".');
+  });
+</script>
+</body>
+</html>
